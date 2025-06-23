@@ -13,6 +13,11 @@ pip install numpy
 pip install --no-dependencies git+https://github.com/AzethMeron/Detections.git
 ```
 
+Recommanded import
+```py
+from Detections import Detection
+```
+
 # Representation
 Detections are represented using single class, ```Detection```. It is equivalent to single bounding box. Attributes are as follows
 ```py
