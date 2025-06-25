@@ -61,7 +61,7 @@ class Detection:
       cy = self.cy * (new_H / orig_H)
       w = self.w * (new_W / orig_W)
       h = self.h * (new_H / orig_H)
-      return Detection.from_cxcywh(cx, cy, w, h, self.class_id, self.confidence)
+      return Detection(cx, cy, w, h, self.rotation, self.class_id, self.confidence)
     def Rotate(self, angle, rotation_center):
           """Rotate the detection box around a given center by `angle` degrees."""
           angle_rad = math.radians(angle)
