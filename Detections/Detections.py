@@ -120,11 +120,11 @@ class Detection:
     def TranslateH(self, dy):
       return Detection(self.cx, self.cy + dy, self.w, self.h, self.rotation, self.class_id, self.confidence)
 
-    def Draw(self, pil_image, class_id_to_name = None):
+    def Draw(self, pil_image, class_id_to_name = None, width=2):
       from PIL import ImageDraw
       draw = ImageDraw.Draw(pil_image)
       corners = self.RotatedCorners()
-      draw.polygon(corners, outline="red", width=2)
+      draw.polygon(corners, outline="red", width=width)
       if class_id_to_name:
         draw.text((self.cx, self.cy), f"{class_id_to_name(self.class_id)}", fill="red")
       else:
@@ -171,6 +171,7 @@ class Detection:
 
     def IOU(self, other):
         import torch
+        from torchvision.ops import box_iou
         box1 = torch.tensor([self.ToXYXY()])
         box2 = torch.tensor([other.ToXYXY()])
         iou = box_iou(box1, box2).item()
@@ -181,16 +182,18 @@ class Detection:
         import torch
         from torchvision.ops import box_iou
         pred_boxes = sorted(pred_boxes, key=lambda x: x.confidence, reverse=True)
+        if len(gt_boxes) == 0: return 0.0
 
         tp = np.zeros(len(pred_boxes))
         fp = np.zeros(len(pred_boxes))
         matched_gt = set()
 
         gt_xyxy = torch.tensor([gt.ToXYXY() for gt in gt_boxes])
+        pred_xyxy = torch.tensor([pred.ToXYXY() for pred in pred_boxes])
 
         for idx, pred in enumerate(pred_boxes):
-            pred_xyxy = torch.tensor([pred.ToXYXY()])
-            ious = box_iou(pred_xyxy, gt_xyxy).numpy().flatten()
+            pred_slice = pred_xyxy[idx:idx+1]
+            ious = box_iou(pred_slice, gt_xyxy).numpy().flatten()
 
             max_iou_idx = np.argmax(ious)
             max_iou = ious[max_iou_idx]
@@ -207,11 +210,12 @@ class Detection:
         recalls = tp_cum / len(gt_boxes)
         precisions = tp_cum / (tp_cum + fp_cum + 1e-6)
 
-        ap = 0
-        for t in np.linspace(0, 1, 11):
-            precisions_above_t = precisions[recalls >= t]
-            precision_value = precisions_above_t.max() if precisions_above_t.size > 0 else 0
-            ap += precision_value / 11
+        # Sort by recall ascending
+        sorted_indices = np.argsort(recalls)
+        recalls = recalls[sorted_indices]
+        precisions = precisions[sorted_indices]
+
+        ap = np.trapz(precisions, recalls)
 
         return ap
 
@@ -238,3 +242,4 @@ class Detection:
         mAP = np.mean(list(ap_per_class.values())) if ap_per_class else 0
 
         return ap_per_class, mAP
+
